@@ -7,7 +7,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.core import serializers
 from django.core.exceptions import ValidationError
 from django.db import connection, models
-from django.test import RequestFactory, TestCase
+from django.test import RequestFactory, TestCase, TransactionTestCase
 from django.test.utils import override_settings
 from django.utils.encoding import force_text
 
@@ -20,6 +20,7 @@ from .models import (Article, Child, CustomManager, CustomPKFood,
                      OfficialFood, OfficialHousePet, OfficialPet, OfficialTag,
                      OfficialThroughModel, Pet, Photo, TaggedCustomPK,
                      TaggedCustomPKFood, TaggedFood, UUIDFood, UUIDTag)
+from .utils import run_concurrently
 
 from taggit.managers import TaggableManager, _TaggableManager
 from taggit.models import Tag, TaggedItem
@@ -27,13 +28,21 @@ from taggit.utils import edit_string_for_tags, parse_tags
 from taggit.views import tagged_object_list
 
 
-class BaseTaggingTestCase(TestCase):
+class BaseTagging:
     def assert_tags_equal(self, qs, tags, sort=True, attr="name"):
         got = [getattr(obj, attr) for obj in qs]
         if sort:
             got.sort()
             tags.sort()
         self.assertEqual(got, tags)
+
+
+class BaseTaggingTestCase(BaseTagging, TestCase):
+    pass
+
+
+class BaseTaggingTransactionTestCase(BaseTagging, TransactionTestCase):
+    pass
 
 
 class TagModelTestCase(BaseTaggingTestCase):
@@ -106,6 +115,27 @@ class TagModelOfficialTestCase(TagModelTestCase):
 class TagUUIDModelTestCase(TagModelTestCase):
     food_model = UUIDFood
     tag_model = UUIDTag
+
+
+class TaggableManagerConcurrencyTestCase(BaseTaggingTransactionTestCase):
+    food_model = Food
+    pet_model = Pet
+    housepet_model = HousePet
+    taggeditem_model = TaggedItem
+    tag_model = Tag
+
+    def test_add_tag_concurrently(self):
+        @run_concurrently(10)
+        def add_tag(taggable_model, name):
+            taggable_model.tags.add(name)
+
+        apple = self.food_model.objects.create(name="apple")
+
+        # Here is the concurrency test
+        add_tag(apple, "green")
+
+        self.assert_tags_equal(apple.tags.all(), ["green"])
+        self.assert_tags_equal(self.food_model.tags.all(), ["green"])
 
 
 class TaggableManagerTestCase(BaseTaggingTestCase):
