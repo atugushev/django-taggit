@@ -41,5 +41,6 @@ TEMPLATES = [
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
+        'TEST': {'NAME': 'test.db'}
     }
 }

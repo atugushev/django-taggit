@@ -183,3 +183,6 @@ class TaggedItem(GenericTaggedItemBase, TaggedItemBase):
         index_together = [
             ["content_type", "object_id"],
         ]
+        unique_together = [
+            "object_id", "tag"
+        ]
