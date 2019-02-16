@@ -1,7 +1,7 @@
 from __future__ import unicode_literals
 
+import six
 from django.conf import settings
-from django.utils import six
 from django.utils.encoding import force_text
 from django.utils.functional import wraps
 from django.utils.module_loading import import_string
